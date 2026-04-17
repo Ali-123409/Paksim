@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>SIM Database Lookup</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:      #0a0c0f;
+    --surface: #101318;
+    --card:    #141820;
+    --border:  #1e2530;
+    --accent:  #00e5a0;
+    --accent2: #00b3ff;
+    --red:     #ff4560;
+    --text:    #d4dce8;
+    --muted:   #5a6a7e;
+    --mono:    'Share Tech Mono', monospace;
+    --sans:    'Rajdhani', sans-serif;
+  }
+  html, body {
+    min-height: 100%; background: var(--bg); color: var(--text);
+    font-family: var(--sans); font-size: 16px; line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image:
+      repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(0,229,160,.025) 40px),
+      repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(0,229,160,.025) 40px);
+  }
+  .app {
+    position: relative; z-index: 1; min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 28px 16px 56px;
+  }
+
+  /* Header */
+  .header { width:100%; max-width:480px; text-align:center; margin-bottom:24px; animation:fadeDown .5s ease both; }
+  .logo-wrap { display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:6px; }
+  .logo-icon {
+    width:40px; height:40px;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    border-radius:11px; display:flex; align-items:center; justify-content:center;
+    font-size:22px; box-shadow:0 0 24px rgba(0,229,160,.35);
+  }
+  h1 {
+    font-size:27px; font-weight:700; letter-spacing:2px; text-transform:uppercase;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  }
+  .subtitle { font-family:var(--mono); font-size:11px; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase; margin-top:4px; }
+
+  /* Card */
+  .card {
+    width:100%; max-width:480px; background:var(--card);
+    border:1px solid var(--border); border-radius:16px; padding:22px 18px;
+    box-shadow:0 8px 40px rgba(0,0,0,.55); animation:fadeDown .5s .1s ease both;
+  }
+
+  /* Badges */
+  .badge-strip { display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap; }
+  .badge { font-family:var(--mono); font-size:10px; letter-spacing:1px; padding:3px 8px; border-radius:4px; border:1px solid; text-transform:uppercase; }
+  .badge-green { color:var(--accent);  border-color:rgba(0,229,160,.3); background:rgba(0,229,160,.07); }
+  .badge-blue  { color:var(--accent2); border-color:rgba(0,179,255,.3); background:rgba(0,179,255,.07); }
+
+  /* Tabs */
+  .tabs { display:flex; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:3px; margin-bottom:16px; }
+  .tab { flex:1; padding:9px 6px; font-family:var(--sans); font-weight:600; font-size:13px; letter-spacing:1px; text-transform:uppercase; text-align:center; border:none; background:none; color:var(--muted); cursor:pointer; border-radius:8px; transition:background .2s, color .2s; }
+  .tab.active { background:linear-gradient(135deg,rgba(0,229,160,.18),rgba(0,179,255,.12)); color:var(--accent); border:1px solid rgba(0,229,160,.2); }
+
+  /* Input */
+  .field-label { font-family:var(--mono); font-size:11px; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase; margin-bottom:8px; }
+  .input-row { display:flex; gap:10px; align-items:stretch; }
+  .input-wrap { flex:1; position:relative; }
+  .prefix { position:absolute; left:12px; top:50%; transform:translateY(-50%); font-family:var(--mono); font-size:13px; color:var(--accent); pointer-events:none; user-select:none; }
+  input[type="text"] {
+    width:100%; background:var(--surface); border:1.5px solid var(--border);
+    border-radius:10px; color:var(--text); font-family:var(--mono); font-size:15px;
+    padding:13px 14px 13px 30px; outline:none;
+    transition:border-color .2s, box-shadow .2s; -webkit-appearance:none; letter-spacing:1px;
+  }
+  input[type="text"]:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(0,229,160,.12); }
+  input[type="text"]::placeholder { color:var(--muted); font-size:13px; letter-spacing:.5px; }
+  .btn-search {
+    background:linear-gradient(135deg,var(--accent),#00c48a); border:none;
+    border-radius:10px; color:#051209; font-family:var(--sans); font-weight:700;
+    font-size:14px; letter-spacing:1px; padding:0 20px; cursor:pointer;
+    transition:opacity .2s, transform .15s; white-space:nowrap; text-transform:uppercase;
+    box-shadow:0 4px 20px rgba(0,229,160,.25); min-height:50px; min-width:90px;
+  }
+  .btn-search:active   { transform:scale(.96); opacity:.85; }
+  .btn-search:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+  .hint { font-family:var(--mono); font-size:10.5px; color:var(--muted); margin-top:9px; }
+
+  /* Status */
+  .sep { height:1px; background:var(--border); margin:18px 0; }
+
+  .loading-wrap { display:flex; flex-direction:column; align-items:center; gap:14px; padding:24px 0 8px; }
+  .spinner-ring { width:44px; height:44px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .loading-text { font-family:var(--mono); font-size:12px; color:var(--accent); letter-spacing:2px; text-transform:uppercase; animation:pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .loading-step { font-family:var(--mono); font-size:10px; color:var(--muted); }
+
+  .error-box { background:rgba(255,69,96,.08); border:1px solid rgba(255,69,96,.25); border-radius:10px; padding:14px 16px; display:flex; align-items:flex-start; gap:10px; }
+  .error-icon { font-size:18px; flex-shrink:0; }
+  .error-text { font-family:var(--mono); font-size:12px; color:var(--red); line-height:1.7; }
+
+  /* Results */
+  .results-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+  .results-title  { font-family:var(--mono); font-size:11px; color:var(--accent); letter-spacing:2px; text-transform:uppercase; }
+  .count-badge    { background:rgba(0,229,160,.12); border:1px solid rgba(0,229,160,.25); color:var(--accent); font-family:var(--mono); font-size:11px; padding:3px 10px; border-radius:20px; }
+
+  .record-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:14px; animation:slideUp .3s ease both; }
+  @keyframes slideUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+  .record-top { background:linear-gradient(90deg,rgba(0,229,160,.08),rgba(0,179,255,.05)); border-bottom:1px solid var(--border); padding:12px 14px; display:flex; align-items:center; gap:12px; }
+  .avatar { width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent2)); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; box-shadow:0 0 14px rgba(0,229,160,.3); font-weight:700; color:#051209; font-family:var(--sans); }
+  .record-name { font-size:17px; font-weight:700; color:#fff; letter-spacing:.5px; }
+  .record-sub  { font-family:var(--mono); font-size:10px; color:var(--accent2); letter-spacing:1px; text-transform:uppercase; margin-top:2px; }
+  .record-fields { padding:14px 16px; display:flex; flex-direction:column; gap:12px; }
+  .field-row { display:flex; gap:10px; }
+  .field-icon { font-size:16px; flex-shrink:0; margin-top:1px; }
+  .field-key  { font-family:var(--mono); font-size:9.5px; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase; margin-bottom:2px; }
+  .field-val  { font-family:var(--mono); font-size:13.5px; color:var(--text); word-break:break-all; letter-spacing:.5px; }
+  .copy-btn   { display:inline-block; margin-left:8px; background:none; border:none; color:var(--muted); cursor:pointer; font-size:12px; padding:0; vertical-align:middle; transition:color .2s; }
+  .copy-btn:active { color:var(--accent); }
+
+  .footer { margin-top:28px; font-family:var(--mono); font-size:10px; color:var(--muted); text-align:center; line-height:1.8; }
+
+  @keyframes fadeDown { from{opacity:0;transform:translateY(-12px)} to{opacity:1;transform:translateY(0)} }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="logo-wrap">
+      <div class="logo-icon">📡</div>
+      <h1>SIM Lookup</h1>
+    </div>
+    <div class="subtitle">Pakistan SIM / CNIC Database</div>
+  </div>
+
+  <div class="card">
+    <div class="badge-strip">
+      <span class="badge badge-green">🟢 Live</span>
+      <span class="badge badge-blue">📶 PK Networks</span>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" id="tabMobile" onclick="switchTab('mobile')">📱 Mobile</button>
+      <button class="tab"        id="tabCnic"   onclick="switchTab('cnic')">🪪 CNIC</button>
+    </div>
+
+    <div class="field-label" id="inputLabel">Mobile Number (with 92)</div>
+    <div class="input-row">
+      <div class="input-wrap">
+        <span class="prefix" id="inputPrefix">📞</span>
+        <input type="text" id="numInput" placeholder="923001234567"
+               maxlength="15" inputmode="numeric" autocomplete="off">
+      </div>
+      <button class="btn-search" id="searchBtn" onclick="doSearch()">Search</button>
+    </div>
+    <div class="hint" id="hintText">Format: 92 + number &nbsp;·&nbsp; e.g. 923001234567</div>
+
+    <div class="sep" id="sep" style="display:none"></div>
+    <div id="statusBox"></div>
+  </div>
+
+  <div class="footer">
+    Powered by pakistandatabase.com &nbsp;·&nbsp; @never_delete
+  </div>
+</div>
+
+<script>
+  let currentTab = 'mobile';
+
+  function switchTab(tab) {
+    currentTab = tab;
+    document.getElementById('tabMobile').classList.toggle('active', tab === 'mobile');
+    document.getElementById('tabCnic').classList.toggle('active',   tab === 'cnic');
+    const inp = document.getElementById('numInput');
+    if (tab === 'mobile') {
+      document.getElementById('inputLabel').textContent  = 'Mobile Number (with 92)';
+      document.getElementById('inputPrefix').textContent = '📞';
+      inp.placeholder = '923001234567'; inp.maxLength = 15;
+      document.getElementById('hintText').textContent = 'Format: 92 + number  ·  e.g. 923001234567';
+    } else {
+      document.getElementById('inputLabel').textContent  = 'CNIC Number';
+      document.getElementById('inputPrefix').textContent = '🪪';
+      inp.placeholder = '3420112345678'; inp.maxLength = 13;
+      document.getElementById('hintText').textContent = '13 digits, no dashes  ·  e.g. 3420112345678';
+    }
+    inp.value = '';
+    clearStatus();
+  }
+
+  function validate(v) {
+    if (currentTab === 'mobile' && !/^92\d{9,12}$/.test(v))
+      return 'Must start with 92 · e.g. 923001234567';
+    if (currentTab === 'cnic' && !/^\d{13}$/.test(v))
+      return 'Must be exactly 13 digits · e.g. 3420112345678';
+    return null;
+  }
+
+  function clearStatus() {
+    document.getElementById('sep').style.display = 'none';
+    document.getElementById('statusBox').innerHTML = '';
+  }
+  function setStatus(html) {
+    document.getElementById('sep').style.display = '';
+    document.getElementById('statusBox').innerHTML = html;
+  }
+  const loadingHtml = step => `
+    <div class="loading-wrap">
+      <div class="spinner-ring"></div>
+      <div class="loading-text">Searching…</div>
+      <div class="loading-step">${step}</div>
+    </div>`;
+  const errorHtml = msg => `
+    <div class="error-box">
+      <div class="error-icon">⚠️</div>
+      <div class="error-text">${msg}</div>
+    </div>`;
+
+  function copyToClipboard(text, btn) {
+    navigator.clipboard.writeText(text)
+      .then(() => { btn.textContent = '✅'; setTimeout(() => btn.textContent = '📋', 1500); })
+      .catch(() => { btn.textContent = '❌'; });
+  }
+
+  function renderResults({ count, records }) {
+    const cards = records.map((r, i) => {
+      const initial = (r.name || '?')[0].toUpperCase();
+      const fields = [
+        r.mobile  && { icon:'📱', key:'Mobile',  val: r.mobile  },
+        r.name    && { icon:'👤', key:'Name',     val: r.name    },
+        r.cnic    && { icon:'🪪', key:'CNIC',     val: r.cnic    },
+        r.address && { icon:'📍', key:'Address',  val: r.address },
+      ].filter(Boolean);
+
+      const rows = fields.map(f => `
+        <div class="field-row">
+          <div class="field-icon">${f.icon}</div>
+          <div>
+            <div class="field-key">${f.key}</div>
+            <div class="field-val">${f.val}
+              <button class="copy-btn" onclick="copyToClipboard('${f.val.replace(/'/g,"\\'")}',this)">📋</button>
+            </div>
+          </div>
+        </div>`).join('');
+
+      return `<div class="record-card" style="animation-delay:${i*.08}s">
+        <div class="record-top">
+          <div class="avatar">${initial}</div>
+          <div>
+            <div class="record-name">${r.name || 'Unknown'}</div>
+            <div class="record-sub">Subscriber Record #${i+1}</div>
+          </div>
+        </div>
+        <div class="record-fields">${rows}</div>
+      </div>`;
+    }).join('');
+
+    setStatus(`
+      <div class="results-header">
+        <div class="results-title">Results</div>
+        <div class="count-badge">${count} record${count!==1?'s':''}</div>
+      </div>${cards}`);
+  }
+
+  async function doSearch() {
+    const query = document.getElementById('numInput').value.trim();
+    const err   = validate(query);
+    if (err) { setStatus(errorHtml(err)); return; }
+
+    const btn = document.getElementById('searchBtn');
+    btn.disabled = true;
+    setStatus(loadingHtml('Querying database…'));
+
+    try {
+      const res  = await fetch(`/api/lookup?query=${encodeURIComponent(query)}`);
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        setStatus(errorHtml(data.error || `Error ${res.status}`));
+      } else {
+        renderResults(data);
+      }
+    } catch (e) {
+      setStatus(errorHtml('Network error: ' + e.message));
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  document.getElementById('numInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doSearch();
+  });
+</script>
+</body>
+</html>
